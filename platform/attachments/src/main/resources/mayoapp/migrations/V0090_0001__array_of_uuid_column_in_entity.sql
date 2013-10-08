@@ -1,8 +1,8 @@
 /* images are now listed in the gallery column which is an array of uuid */
-ALTER TABLE product ADD COLUMN gallery uuid[];
-ALTER TABLE page ADD COLUMN gallery uuid[];
-ALTER TABLE article ADD COLUMN gallery uuid[];
-ALTER TABLE collection ADD COLUMN gallery uuid[];
+ALTER TABLE product ADD COLUMN gallery uuid[] DEFAULT ARRAY[]::uuid[];
+ALTER TABLE page ADD COLUMN gallery uuid[] DEFAULT ARRAY[]::uuid[];
+ALTER TABLE article ADD COLUMN gallery uuid[] DEFAULT ARRAY[]::uuid[];
+ALTER TABLE collection ADD COLUMN gallery uuid[] DEFAULT ARRAY[]::uuid[];
 
 /* migrate all attachments that are images and whose parent is in one of the 
 tables above to the new gallery field */
