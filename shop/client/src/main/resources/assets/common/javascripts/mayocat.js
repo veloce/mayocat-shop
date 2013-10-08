@@ -7,6 +7,7 @@ var mayocat = angular.module('mayocat', [
     'mayocat.thumbnail',
     'mayocat.configuration',
     'mayocat.time',
+    'mayocat.entities',
     'mayocat.locales'
 ]);
 
@@ -77,17 +78,17 @@ mayocat.config(function ($httpProvider) {
  *
  * TODO: handle ng-disabled
  */
-mayocat.directive('listPicker', [function(){
+mayocat.directive('listPicker', ['$parse', function($parse){
     return {
         restrict: 'E',
         require: 'ngModel',
         transclude: 'element',
         replace: true,
         template: '<div><div><ul class="pickerElements"><li ng-repeat="element in model">' +
-            '<button class="btn btn-mini" ng-click="remove(element)">{{element}} &times;</span></button>' +
+            '<button class="btn btn-mini" ng-click="remove(element)">{{getDisplayElement(element)}} &times;</span></button>' +
             '</li></ul></div><div class="clearfix"></div>' +
             '<span ng-transclude></span>' +
-            '<input type="submit" class="btn" value="Add" ng-click="add()"></div>',
+            '<input type="submit" class="btn" value="{{\'global.actions.add\' | translate}}" ng-click="add()"></div>',
 
         link: function (scope, element, attr, ngModel) {
             scope.$watch(function () {
@@ -109,6 +110,13 @@ mayocat.directive('listPicker', [function(){
             }
             $scope.remove = function (currency) {
                 $scope.model.splice($scope.model.indexOf(currency), 1);
+            }
+            if (typeof $attrs.display !== 'undefined') {
+                var passed = $parse($attrs.display);
+            }
+            $scope.getDisplayElement = function (element) {
+                $scope.elementToDisplay = element;
+                return passed ? passed($scope): element;
             }
         }
     };
@@ -392,27 +400,36 @@ mayocat.directive('ckEditor', function () {
     return {
         require: '?ngModel',
         link: function (scope, elm, attr, ngModel) {
-            var ck = CKEDITOR.replace(elm[0],
-                {
-                    toolbarGroups: [
-                        { name: 'basicstyles', groups: [ 'basicstyles', 'cleanup' ] },
-                        { name: 'paragraph', groups: [ 'list', 'indent', 'blocks', 'align' ] },
-                        { name: 'links' },
-                        { name: 'styles' }
-                    ],
-                    removePlugins: 'elementspath',
-                    height: '290px',
-                    width: '99%'
-                }
-            );
+            var ckOptions = {
+                language: localStorage.locale || Mayocat.defaultLocale,
+                toolbarGroups: [
+                    { name: 'basicstyles', groups: [ 'basicstyles', 'cleanup' ] },
+                    { name: 'paragraph', groups: [ 'list', 'indent', 'blocks', 'align' ] },
+                    { name: 'links' },
+                    { name: 'styles' }
+                ],
+                removePlugins: 'elementspath',
+                height: '290px',
+                width: '99%'
+            };
+
+            var textarea = elm[0],
+                ck = CKEDITOR.replace(textarea, ckOptions);
 
             if (!ngModel) return;
 
-            //loaded didn't seem to work, but instanceReady did
-            //I added this because sometimes $render would call setData before the ckeditor was ready
+            // loaded didn't seem to work, but instanceReady did
+            // I added this because sometimes $render would call setData before the ckeditor was ready
             ck.on('instanceReady', function () {
                 ck.setData(ngModel.$viewValue);
             });
+
+            // Make sure that if the model changes, the values is passed backed to the ckeditor
+            // Example: value comes from an AJAX request, and that creates a race condition vs. ckeditor initialization
+            scope.$watch(ngModel, function(){
+                ck.setData(ngModel.$viewValue);
+            });
+
 
             ck.on('pasteState', function () {
                 scope.$apply(function () {
@@ -423,6 +440,25 @@ mayocat.directive('ckEditor', function () {
             ngModel.$render = function (value) {
                 ck.setData(ngModel.$viewValue);
             };
+
+            scope.$on('entity:initialized', function(event, entity){
+                CKEDITOR.config.mayocat_entityUri = entity.uri;
+            });
+
+            // Create a new ckEditor with a new locale when this last one is changed
+            scope.$on('ui:localeChanged', function (event, locale) {
+                var data = ck.getData();
+
+                ckOptions.language = locale;
+                ckOptions.on = {
+                    instanceReady: function () {
+                        this.setData(data);
+                    }
+                };
+
+                ck.destroy();
+                ck = CKEDITOR.replace(textarea, ckOptions);
+            });
 
         }
     };
@@ -619,9 +655,9 @@ mayocat.controller('LoginController', ['$rootScope', '$scope',
     }]);
 
 
-mayocat.controller('AppController', ['$rootScope', '$scope', '$location', '$http', 'authenticationService',
+mayocat.controller('AppController', ['$rootScope', '$scope', '$location', '$http', '$translate', 'authenticationService',
     'configurationService',
-    function ($rootScope, $scope, $location, $http, authenticationService, configurationService) {
+    function ($rootScope, $scope, $location, $http, $translate, authenticationService, configurationService) {
 
 
         /**
@@ -722,6 +758,16 @@ mayocat.controller('AppController', ['$rootScope', '$scope', '$location', '$http
 
         $scope.setRoute = function (href) {
             $location.url(href);
+        };
+
+        $rootScope.uiLocale = localStorage.locale || Mayocat.defaultLocale;
+
+        $scope.changeLocale = function (locale) {
+            $rootScope.$broadcast('ui:localeChanged', locale);
+
+            localStorage.locale = locale;
+            $rootScope.uiLocale = locale;
+            $translate.uses(locale);
         };
 
     }]);

@@ -33,6 +33,19 @@ angular.module('settings', ['ngResource'])
                 return configurationService.isDefaultValue($scope.settings, path);
             };
 
+            /**
+             * Function passed to the list-picker to handle the display of locale tags
+             */
+            $scope.displayLocale = function () {
+                var locales = $scope.locales.$$v; // this is morally wrong
+                for (var i = 0; i < locales.length; i++) {
+                    if (locales[i].tag === $scope.elementToDisplay) {
+                        return locales[i].name;
+                    }
+                }
+                return $scope.elementToDisplay;
+            }
+
             // Initialization ------------------------------------------------------------------------------------------
 
             $scope.timeZoneRegions = timeService.getTimeZoneData();
@@ -211,6 +224,16 @@ angular.module('settings', ['ngResource'])
                         });
                 });
             }
+
+            $scope.getTranslationProperties = function () {
+                var editedCarrier = $scope.editedCarrier || {};
+                return {
+                    mainCurrency: $scope.mainCurrency || '',
+                    weightUnit: $scope.weightUnit || '',
+                    numberOfSelectedDestinations: (editedCarrier.destinations || {}).length || 0,
+                    maximumDaysSelected: editedCarrier.maximumDays || 0
+                };
+            };
 
             $scope.$watch('editedCarrier.destinations', function (path) {
                 if (typeof $scope.editedCarrier !== 'undefined') {
