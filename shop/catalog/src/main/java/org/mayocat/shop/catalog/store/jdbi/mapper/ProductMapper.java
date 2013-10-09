@@ -6,13 +6,11 @@ import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Arrays;
-import java.util.ArrayList;
 import java.util.List;
-import java.sql.Array;
 
 import org.apache.commons.lang3.LocaleUtils;
 import org.mayocat.shop.catalog.model.Product;
+import org.mayocat.store.rdbms.dbi.dao.util.PgArrayUtil;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
@@ -35,9 +33,7 @@ public class ProductMapper implements ResultSetMapper<Product>
         product.setPrice(resultSet.getBigDecimal("price"));
         product.setWeight(resultSet.getBigDecimal("weight"));
 
-        Array array = resultSet.getArray("gallery");
-        UUID[] uuids = (UUID[])array.getArray();
-        List<UUID> gallery = Arrays.asList(uuids);
+        List<UUID> gallery = PgArrayUtil.arrayFromString(resultSet.getString("gallery"), UUID.class);
         product.setGallery(gallery);
 
         UUID featuredImageId = (UUID) resultSet.getObject("featured_image_id");
