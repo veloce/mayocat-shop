@@ -37,6 +37,29 @@
                             var mixinOptions = options[mixinName];
                             angular.extend($scope, args[i](entityType, mixinOptions));
                         }
+                    },
+
+                    extend: function(mixins, $scope, entityType, options) {
+                        options = typeof options === "undefined" ? {} : options;
+
+                        // Support for "just one mixin"
+                        if (typeof mixins == "string") {
+                            options = {
+                                mixins: options
+                            };
+                            mixins = [ mixins ];
+                        }
+
+                        for (var i = 0; i < allMixins.length; i++) {
+                            var mixin = allMixins[i];
+                            var mixinName = mixin.substring(6);
+                            mixinName = mixinName.substring(0, mixinName.indexOf('Mixin')).toLowerCase();
+
+                            if (mixins.indexOf(mixinName) >= 0) {
+                                var mixinOptions = options[mixinName];
+                                angular.extend($scope, args[i](entityType, mixinOptions));
+                            }
+                        }
                     }
                 }
             }
@@ -44,10 +67,12 @@
 
         .factory('entityBaseMixin', ["$routeParams" , "$rootScope", function ($routeParams, $rootScope) {
             return function (entityType, options) {
-                console.log("Options", options);
                 options = typeof options === "undefined" ? {} : options;
+
+                var slug = $routeParams[entityType];
+
                 var mixin = {
-                    slug: $routeParams[entityType],
+                    slug: slug,
                     isNew: function () {
                         var scope = this;
                         return scope.slug == "_new";
@@ -58,11 +83,6 @@
                         scope.initializeAddons && scope.initializeAddons();
                         scope.initializeModels && scope.initializeModels();
                         scope.initializeLocalization && scope.initializeLocalization();
-
-                        $rootScope.$broadcast("entity:initialized", {
-                            type: entityType,
-                            uri: (options.apiBase || "/api/" + entityType + "s/") + scope.slug + "/"
-                        });
                     }
                 };
 
@@ -74,6 +94,13 @@
                         slug: ""
                     };
                 };
+
+                $rootScope.entity = {
+                    type: entityType,
+                    uri: (options.apiBase || "/api/" + entityType + "s/") + slug,
+                    slug: slug
+                };
+                $rootScope.$broadcast("entity:initialized", $rootScope.entity);
 
                 return mixin;
             }
@@ -177,13 +204,33 @@
                     $rootScope.$broadcast('thumbnails:edit', entityType, image);
                 }
 
+                mixin.updateImageMeta = function (image) {
+                    image.isSaving = true;
+
+                    var scope = this;
+
+                    $http.post($rootScope.entity.uri +  "/images/" + image.slug, image)
+                        .success(function(data, status) {
+                            image.isSaving = false;
+
+                            if(status < 400) {
+                                image.editMeta = false;
+                            } else {
+                                $rootScope.$broadcast('event:serverError');
+                            }
+                        })
+                        .error(function() {
+                            image.isSaving = false;
+                            $rootScope.$broadcast('event:serverError');
+                        });
+                }
+
                 mixin.reloadImages = function () {
                     var scope = this;
-                    $http.get("/api/" + entityType + "s/" + scope.slug + "/images")
+                    $http.get($rootScope.entity.uri + "/images")
                         .success(function (data) {
                             scope[entityType].images = data;
-                        }
-                    );
+                        });
                 }
 
                 mixin.selectFeatureImage = function (image) {
@@ -193,14 +240,14 @@
 
                 mixin.removeImage = function (image) {
                     var scope = this;
-                    $http.delete("/api/" + entityType + "s/" + scope.slug + "/images/" + image.slug).success(function () {
+                    $http.delete($rootScope.entity.uri + "/images/" + image.slug).success(function () {
                         scope.reloadImages();
                     });
                 }
 
                 mixin.getImageUploadUri = function () {
                     var scope = this;
-                    return "/api/" + entityType + "s/" + scope.slug + "/attachments";
+                    return $rootScope.entity ? ($rootScope.entity.uri + "/attachments") : "";
                 }
 
                 return mixin;
@@ -299,6 +346,12 @@
                         $scope.selectedLocale = $scope.mainLocale;
                         $scope.locales = [ locales.main ];
                         $scope.locales.push.apply($scope.locales, locales.others);
+
+                        if ($scope.locales.length === 1) {
+                            // If there is only one locale, we don't display a locale switcher, but the plain field
+                            $($element).removeClass("locales-wrapper input-append");
+                            $($element).find(".locales-switch").addClass("hidden");
+                        }
                     });
                 }
             }

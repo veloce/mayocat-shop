@@ -58,6 +58,7 @@
                                     <textarea rows="5" ng-model="image.description"
                                               placeholder="{{'upload.placeholder.description' | translate}}"></textarea>
                                 </div>
+                                <span ng-class="{'loading': image.isSaving}"></span>
                                 <button type="button" class="btn" ng-click="image.editMeta = false">
                                     {{'entity.action.cancel' | translate}}
                                 </button>
@@ -203,7 +204,7 @@
             </div>
         </div>
 
-        <div class="block" ng-show="!isNew()">
+        <div class="block" ng-show="!isNew() && hasStock">
             <h3>{{'product.misc.stock' | translate}}</h3>
 
             <div>
