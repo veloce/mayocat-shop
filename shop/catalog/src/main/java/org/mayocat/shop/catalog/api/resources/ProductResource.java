@@ -135,19 +135,18 @@ public class ProductResource extends AbstractAttachmentResource implements Resou
             throw new WebApplicationException(Response.status(404).build());
         }
 
-        for (Attachment attachment : this.getAttachmentStore().findAllChildrenOf(product,
-                Arrays.asList("png", "jpg", "jpeg", "gif")))
+        for (Attachment attachment : this.getAttachmentStore().findByIds(product.getGallery()))
         {
             List<Thumbnail> thumbnails = thumbnailStore.get().findAll(attachment);
             Image image = new Image(attachment, thumbnails);
-            ImageRepresentation representation = new ImageRepresentation(image);
+            ImageRepresentation im = new ImageRepresentation(image);
             if (product.getFeaturedImageId() != null) {
                 if (product.getFeaturedImageId().equals(attachment.getId())) {
-                    representation.setFeatured(true);
+                    im.setFeatured(true);
                 }
             }
 
-            result.add(representation);
+            result.add(im);
         }
 
         return result;

@@ -51,6 +51,8 @@ public class Product implements Entity, HasAddons, HasModel, HasFeaturedImage, P
 
     private Integer stock;
 
+    private List<UUID> gallery;
+
     @DoNotIndex
     private UUID featuredImageId;
 
@@ -210,6 +212,16 @@ public class Product implements Entity, HasAddons, HasModel, HasFeaturedImage, P
     public void setStock(Integer stock)
     {
         this.stock = stock;
+    }
+
+    public List<UUID> getGallery()
+    {
+        return gallery;
+    }
+
+    public void setGallery(List<UUID> gallery)
+    {
+        this.gallery = gallery;
     }
 
     public void setLocalizedVersions(Map<Locale, Map<String, Object>> versions)
